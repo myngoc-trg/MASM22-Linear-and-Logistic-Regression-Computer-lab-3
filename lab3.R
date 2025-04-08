@@ -139,7 +139,7 @@ ggplot(logPb_pred, aes(x = year, y = dfbetas)) +
   ylab("DFBETAS_1") +
   xlab("Year") +
   labs(title = "DFBETAS_1: impact on the slope",
-       subtitle = "without the strange fish",
+       #subtitle = "without the strange fish",
        caption = "y = sqrt(F_0.5) and 2/sqrt(n)") +
   theme(legend.position = "bottom") +
   scale_color_manual(values = highlightcolors) +
@@ -156,3 +156,50 @@ ggplot(Pb_all, aes(x = year, y = Pb)) +
 xlab("Year") +
   ylab("Pb concentration") +
   labs(title = "Pb concentration changes over year")
+
+
+# lAB 3.B Model selection
+# 3.b(a)
+# Fit a model with interaction between time and region
+logPb_year_inter_lm <- lm(log(Pb) ~ I(year - 1975)*region, data = Pb_all)
+logPb_year_inter_sum <- summary(logPb_year_inter_lm)
+logPb_year_inter_sum
+anova(logPb_allregion_lm, logPb_year_inter_lm)
+logPb_year_lm <- lm(log(Pb) ~ I(year-1975), data = Pb_all)
+logPb_year_sum <- summary(logPb_year_lm)
+logPb_year_sum$adj.r.squared
+logPb_year_region_sum <- logPb_allregion_sum
+logPb_year_region_lm <- logPb_allregion_lm
+logPb_year_region_sum$adj.r.squared
+logPb_year_inter_sum$adj.r.squared
+
+collect.R2AIC <- data.frame(
+  nr = seq(1, 3),
+  model = c("01.time", "02.time+region", "03.time*region"),
+  sigma = c(logPb_year_sum$sigma,
+            logPb_year_region_sum$sigma,
+            logPb_year_inter_sum$sigma),
+  R2 = c(logPb_year_sum$r.squared,
+         logPb_year_region_sum$r.squared,
+         logPb_year_inter_sum$r.squared),
+  R2.adj = c(logPb_year_sum$adj.r.squared,
+             logPb_year_region_sum$adj.r.squared,
+             logPb_year_inter_sum$adj.r.squared))
+collect.R2AIC |> arrange(desc(R2.adj))
+
+ggplot(collect.R2AIC) +
+  geom_point(aes(x = model, y = R2, color = "R2"), size = 3) + 
+  geom_point(aes(x = model, y = R2.adj, color = "R2-adjusted"), size = 3) + 
+  geom_line(aes(x = nr, y = R2, color = "R2"), linewidth = 1) +
+  geom_line(aes(x = nr, y = R2.adj, color = "R2-adjusted"), 
+            linewidth = 1, linetype = "dashed") +
+  geom_hline(yintercept = 1) +
+  labs(title = "Cabbage: R2 and R2-adjusted",
+       color = "") +
+  ylab("R2") +
+  theme(legend.position = "bottom")
+
+cbind(collect.R2AIC,
+      AIC = AIC(logPb_year_lm, logPb_year_region_lm, logPb_year_inter_lm),
+      BIC = BIC(logPb_year_lm, logPb_year_region_lm, logPb_year_inter_lm)) -> collect.R2AIC
+glimpse(collect.R2AIC)
